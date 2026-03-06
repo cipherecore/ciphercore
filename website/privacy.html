@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — CiphereCore</title>
+  <meta name="description" content="CiphereCore's privacy policy. Learn how we protect your data and respect your privacy with our zero-knowledge architecture.">
+  <link rel="icon" type="image/x-icon" href="ciphercore_icon.ico">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header" id="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="logo-text">Ciphe<span>reCore</span></span></a>
+      <nav class="nav-desktop"><a href="index.html">Home</a><a href="features.html">Features</a><a href="download.html">Download</a><a href="docs.html">Docs</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav>
+      <div class="nav-cta">
+        <a href="download.html" class="btn btn-primary btn-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+    <nav class="nav-mobile" id="nav-mobile"><a href="index.html">Home</a><a href="features.html">Features</a><a href="download.html">Download</a><a href="docs.html">Docs</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav>
+  </header>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header">
+    <div class="container">
+      <div class="breadcrumb"><a href="index.html">Home</a> <span>/</span> <span>Privacy Policy</span></div>
+      <h1 class="heading-xl fade-up">Privacy <span class="text-gradient">Policy</span></h1>
+      <p class="fade-up fade-up-delay-1">Last updated: March 6, 2026</p>
+    </div>
+  </section>
+
+  <!-- CONTENT -->
+  <section class="section">
+    <div class="container">
+      <div class="legal-content fade-up">
+        <h2>Introduction</h2>
+        <p>CiphereCore ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use the CiphereCore application and visit our website at cipherecore.com.</p>
+
+        <h2>Information We Collect</h2>
+        <p><strong>Zero-Knowledge Architecture:</strong> CiphereCore is designed with a zero-knowledge architecture. This means:</p>
+        <ul>
+          <li>All encryption and decryption operations occur <strong>locally on your device</strong></li>
+          <li>Your encryption passwords and keys are <strong>never transmitted</strong> to our servers</li>
+          <li>We <strong>cannot access</strong> your encrypted data under any circumstances</li>
+          <li>Passwords are hashed using bcrypt with 12 rounds of salt before storage</li>
+        </ul>
+
+        <p><strong>Account Information:</strong> When you create an account, we store:</p>
+        <ul>
+          <li>Username (required)</li>
+          <li>Password hash (bcrypt, we never store plaintext passwords)</li>
+          <li>Email address (optional)</li>
+          <li>Account creation timestamp</li>
+        </ul>
+
+        <p><strong>Chat Messages:</strong> If you use the chat features with MongoDB:</p>
+        <ul>
+          <li>Messages are stored on your configured MongoDB instance (self-hosted or specified)</li>
+          <li><strong>We do not operate</strong> a central message server</li>
+          <li>If you enable message encryption, only encrypted ciphertext is stored</li>
+        </ul>
+
+        <p><strong>Website:</strong> Our website does not use cookies, trackers, or analytics services. We do not collect any browsing data.</p>
+
+        <h2>How We Use Your Information</h2>
+        <p>The limited information we collect is used solely to:</p>
+        <ul>
+          <li>Authenticate your identity when you log in</li>
+          <li>Manage chat sessions and friend connections</li>
+          <li>Provide application functionality</li>
+        </ul>
+        <p>We <strong>never</strong> sell, license, or share your personal information with third parties.</p>
+
+        <h2>Data Storage</h2>
+        <ul>
+          <li><strong>Local Storage:</strong> User accounts, sessions, and messages are stored in a local SQLite database (<code>ciphercore.db</code>) on your machine</li>
+          <li><strong>MongoDB (Optional):</strong> If configured, chat data is stored on your specified MongoDB instance. You control the server and the data.</li>
+          <li><strong>Log Files:</strong> System logs are stored locally in the <code>logs/</code> directory and contain operational data only (no encryption keys or passwords)</li>
+        </ul>
+
+        <h2>Data Security</h2>
+        <p>We take data security seriously:</p>
+        <ul>
+          <li>All passwords are hashed with bcrypt (12 rounds)</li>
+          <li>Session tokens are generated using cryptographically secure random number generators</li>
+          <li>Rate limiting protects against brute-force attacks (5 attempts, 5-minute lockout)</li>
+          <li>Input validation and sanitization prevents injection attacks</li>
+          <li>HMAC verification ensures message integrity</li>
+        </ul>
+
+        <h2>Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+          <li><strong>Access</strong> your data — all data is stored locally on your device</li>
+          <li><strong>Delete</strong> your data — simply delete the database file and logs directory</li>
+          <li><strong>Export</strong> your data — database files can be accessed directly</li>
+          <li><strong>Modify</strong> your account information through the application</li>
+        </ul>
+
+        <h2>Third-Party Services</h2>
+        <p>CiphereCore uses the following third-party libraries, none of which collect user data:</p>
+        <ul>
+          <li>Python cryptography library (encryption operations)</li>
+          <li>bcrypt (password hashing)</li>
+          <li>CustomTkinter (GUI framework)</li>
+          <li>PyMongo (MongoDB driver, optional)</li>
+        </ul>
+
+        <h2>Children's Privacy</h2>
+        <p>CiphereCore is not directed to children under 13. We do not knowingly collect personal information from children.</p>
+
+        <h2>Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated revision date. We encourage you to review this policy periodically.</p>
+
+        <h2>Contact Us</h2>
+        <p>If you have any questions about this Privacy Policy or our data practices, please contact us at <a href="mailto:cipherecore@gmail.com">cipherecore@gmail.com</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="logo-text">Ciphe<span>reCore</span></span></a>
+          <p>A powerful multi-purpose security platform built for privacy.</p>
+        </div>
+        <div class="footer-col"><h4>Product</h4><ul><li><a href="features.html">Features</a></li><li><a href="download.html">Download</a></li><li><a href="docs.html">Docs</a></li></ul></div>
+        <div class="footer-col"><h4>Company</h4><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li><li><a href="privacy.html">Privacy</a></li></ul></div>
+        <div class="footer-col"><h4>Support</h4><ul><li><a href="docs.html">Getting Started</a></li><li><a href="mailto:cipherecore@gmail.com">Email</a></li></ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 CiphereCore. All rights reserved.</span>
+        <div class="footer-bottom-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

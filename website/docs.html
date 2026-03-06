@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — CiphereCore Security Platform</title>
+  <meta name="description" content="CiphereCore documentation: getting started guide, encryption algorithms, chat setup, file encryption, security tools, and configuration reference.">
+  <link rel="icon" type="image/x-icon" href="ciphercore_icon.ico">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header" id="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="logo-text">Ciphe<span>reCore</span></span></a>
+      <nav class="nav-desktop"><a href="index.html">Home</a><a href="features.html">Features</a><a href="download.html">Download</a><a href="docs.html" class="active">Docs</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav>
+      <div class="nav-cta">
+        <a href="download.html" class="btn btn-primary btn-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</a>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+    <nav class="nav-mobile" id="nav-mobile"><a href="index.html">Home</a><a href="features.html">Features</a><a href="download.html">Download</a><a href="docs.html">Docs</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav>
+  </header>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header">
+    <div class="container">
+      <div class="breadcrumb"><a href="index.html">Home</a> <span>/</span> <span>Documentation</span></div>
+      <h1 class="heading-xl fade-up"><span class="text-gradient">Documentation</span></h1>
+      <p class="fade-up fade-up-delay-1">Everything you need to know about using CiphereCore effectively and securely.</p>
+    </div>
+  </section>
+
+  <!-- DOCS CONTENT -->
+  <section class="section">
+    <div class="container">
+      <div class="docs-layout">
+        <!-- Sidebar -->
+        <aside class="docs-sidebar">
+          <h4>Getting Started</h4>
+          <ul>
+            <li><a href="#overview" class="active">Overview</a></li>
+            <li><a href="#installation">Installation</a></li>
+            <li><a href="#first-launch">First Launch</a></li>
+            <li><a href="#authentication">Authentication</a></li>
+          </ul>
+          <h4>Encryption</h4>
+          <ul>
+            <li><a href="#text-encryption">Text Encryption</a></li>
+            <li><a href="#file-encryption">File Encryption</a></li>
+            <li><a href="#algorithms">Algorithms</a></li>
+          </ul>
+          <h4>Chat System</h4>
+          <ul>
+            <li><a href="#server-chat">Server Chat</a></li>
+            <li><a href="#global-chat">Global Chat</a></li>
+            <li><a href="#private-chat">Private Messages</a></li>
+            <li><a href="#hosting-server">Hosting a Server</a></li>
+          </ul>
+          <h4>Tools</h4>
+          <ul>
+            <li><a href="#password-gen">Password Generator</a></li>
+            <li><a href="#hash-calc">Hash Calculator</a></li>
+            <li><a href="#tools-overview">All Tools</a></li>
+          </ul>
+          <h4>Configuration</h4>
+          <ul>
+            <li><a href="#config">Config File</a></li>
+            <li><a href="#mongodb">MongoDB Setup</a></li>
+          </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="docs-content">
+          <h2 id="overview">Overview</h2>
+          <p>CiphereCore is a multi-purpose desktop security platform that combines military-grade encryption, secure messaging, and professional security tools into a single application. Built with Python and CustomTkinter, it offers a modern, elegant interface with enterprise-level security features.</p>
+
+          <h3>Key Capabilities</h3>
+          <ul>
+            <li><strong>Text Encryption</strong> — 5 algorithms (AES-256, Fernet, ChaCha20, Triple DES, AES-CTR)</li>
+            <li><strong>File Encryption</strong> — Protect files up to 500MB with AES-256</li>
+            <li><strong>Encrypted Chat</strong> — Server, Global, and Private messaging modes</li>
+            <li><strong>Security Tools</strong> — Password generator, hash calculator, Base64, QR codes, UUIDs, and more</li>
+            <li><strong>User System</strong> — Authentication with bcrypt, sessions, and friend management</li>
+          </ul>
+
+          <h2 id="installation">Installation</h2>
+          <p>CiphereCore is distributed as a standalone Windows executable. No Python installation or additional dependencies are required.</p>
+          <ol>
+            <li>Download <code>CiphereCore.exe</code> from the <a href="download.html">download page</a></li>
+            <li>Place it in your preferred directory</li>
+            <li>Double-click to launch</li>
+          </ol>
+          <p>If Windows SmartScreen blocks the application, click <strong>"More info"</strong> → <strong>"Run anyway"</strong>. This occurs because the executable is not yet code-signed.</p>
+
+          <h2 id="first-launch">First Launch</h2>
+          <p>On first launch, CiphereCore will automatically:</p>
+          <ul>
+            <li>Create a local SQLite database (<code>ciphercore.db</code>) for user accounts and messages</li>
+            <li>Create a <code>logs/</code> directory for system logging</li>
+            <li>Create a <code>certs/</code> directory for SSL certificates</li>
+            <li>Generate a <code>config.json</code> file for application settings</li>
+          </ul>
+
+          <h2 id="authentication">Authentication</h2>
+          <p>CiphereCore uses a secure authentication system:</p>
+          <ul>
+            <li><strong>Password Hashing:</strong> bcrypt with 12 rounds of salt</li>
+            <li><strong>Session Tokens:</strong> Cryptographically secure random tokens (32 bytes, URL-safe)</li>
+            <li><strong>Rate Limiting:</strong> Maximum 5 login attempts before 5-minute lockout</li>
+            <li><strong>Input Validation:</strong> Usernames 3-32 characters, alphanumeric with hyphens/underscores</li>
+          </ul>
+          <pre><code># Registration example flow
+Username: my_username    (3-32 chars, alphanumeric + - _)
+Password: ••••••••       (any password accepted)
+Email:    optional@email.com  (optional field)</code></pre>
+
+          <h2 id="text-encryption">Text Encryption</h2>
+          <p>Navigate to the <strong>Encrypt</strong> tab to encrypt and decrypt text. Select your preferred algorithm, enter a password, and click Encrypt or Decrypt.</p>
+
+          <h3>Supported Algorithms</h3>
+          <pre><code>┌──────────────┬──────────────┬──────────────────────┐
+│ Algorithm    │ Key Size     │ Mode                 │
+├──────────────┼──────────────┼──────────────────────┤
+│ AES-256      │ 256-bit      │ CBC with PKCS7       │
+│ Fernet       │ 256-bit      │ CBC + HMAC-SHA256    │
+│ ChaCha20     │ 256-bit      │ Stream cipher        │
+│ Triple DES   │ 192-bit      │ CBC with PKCS7       │
+│ AES-CTR      │ 128-bit      │ Counter mode         │
+└──────────────┴──────────────┴──────────────────────┘</code></pre>
+
+          <h2 id="file-encryption">File Encryption</h2>
+          <p>Navigate to the <strong>File</strong> tab to encrypt or decrypt files. CiphereCore supports all file types up to 500MB.</p>
+          <ul>
+            <li>Select a file using the file browser</li>
+            <li>Enter an encryption password</li>
+            <li>Click <strong>Encrypt File</strong> — output is saved as <code>filename.ext.enc</code></li>
+            <li>To decrypt, select the <code>.enc</code> file and enter the same password</li>
+          </ul>
+
+          <h2 id="algorithms">Algorithms In-Depth</h2>
+          <h3>AES-256 (Recommended)</h3>
+          <p>Advanced Encryption Standard with a 256-bit key in Cipher Block Chaining (CBC) mode. Uses PKCS7 padding and random 16-byte initialization vectors. This is the industry standard for government and military data protection.</p>
+
+          <h3>Fernet</h3>
+          <p>A symmetric encryption scheme that provides authenticated encryption using AES-128-CBC with HMAC-SHA256 verification. The key is derived from your password using SHA-256 and encoded as a URL-safe base64 string.</p>
+
+          <h3>ChaCha20</h3>
+          <p>A high-speed stream cipher designed by Daniel Bernstein. Uses a 256-bit key with a 96-bit nonce. Particularly efficient on devices without AES hardware acceleration.</p>
+
+          <h2 id="server-chat">Server Chat</h2>
+          <p>Connect to a CiphereCore chat server to communicate with other users in real-time.</p>
+          <pre><code># Connect to a server
+Host: 192.168.1.100    (server IP address)
+Port: 5000             (default port)
+Nickname: your_name
+Password: server_pwd   (if server requires auth)</code></pre>
+
+          <h2 id="global-chat">Global Chat</h2>
+          <p>Global chat uses MongoDB for message persistence. All users connected to the same MongoDB instance can see global messages. Messages are stored in the <code>global_chat</code> collection.</p>
+
+          <h2 id="private-chat">Private Messages</h2>
+          <p>Send direct messages to friends. Private messages are stored in the <code>private_chat</code> MongoDB collection and are only visible to the sender and recipient.</p>
+
+          <h2 id="hosting-server">Hosting a Server</h2>
+          <p>CiphereCore includes a built-in chat server. To host:</p>
+          <ol>
+            <li>Navigate to the <strong>Chat</strong> tab</li>
+            <li>Click <strong>Server</strong> mode</li>
+            <li>Set a port (default: 5000) and optional password</li>
+            <li>Click <strong>Start Server</strong></li>
+            <li>Share your IP address and port with others to connect</li>
+          </ol>
+          <pre><code># Server configuration
+Port: 5000           (1024-65535)
+Password: optional   (protects against unauthorized access)
+Max connections: unlimited</code></pre>
+
+          <h2 id="password-gen">Password Generator</h2>
+          <p>Generate cryptographically secure random passwords using Python's <code>secrets</code> module. Customize length and character types (uppercase, lowercase, digits, special characters).</p>
+
+          <h2 id="hash-calc">Hash Calculator</h2>
+          <p>Compute hash values for any text input:</p>
+          <ul>
+            <li><strong>MD5</strong> — 128-bit (not recommended for security)</li>
+            <li><strong>SHA-1</strong> — 160-bit (deprecated for security)</li>
+            <li><strong>SHA-256</strong> — 256-bit (recommended)</li>
+            <li><strong>SHA-512</strong> — 512-bit (maximum security)</li>
+          </ul>
+
+          <h2 id="tools-overview">All Tools</h2>
+          <ul>
+            <li><strong>Password Generator</strong> — Secure random password creation</li>
+            <li><strong>Hash Calculator</strong> — MD5, SHA-1, SHA-256, SHA-512</li>
+            <li><strong>Base64 Encoder/Decoder</strong> — Encode and decode Base64</li>
+            <li><strong>QR Code Generator</strong> — Create QR codes from text/URLs</li>
+            <li><strong>UUID Generator</strong> — Generate UUID v4 identifiers</li>
+            <li><strong>Color Picker</strong> — Pick colors with hex/RGB output</li>
+            <li><strong>Text Analyzer</strong> — Character, word, and line counting</li>
+            <li><strong>File Checksum</strong> — Verify file integrity with MD5/SHA</li>
+          </ul>
+
+          <h2 id="config">Configuration File</h2>
+          <p>CiphereCore stores settings in <code>config.json</code> located in the application directory:</p>
+          <pre><code>{
+  "theme": "dark",
+  "default_port": 5000,
+  "default_cipher": "AES-256",
+  "auto_connect": false,
+  "message_encryption": true
+}</code></pre>
+
+          <h2 id="mongodb">MongoDB Setup (Optional)</h2>
+          <p>For global and private chat persistence, CiphereCore connects to MongoDB. Configure via environment variables or <code>.env</code> file:</p>
+          <pre><code># .env file
+MONGO_URI=mongodb://localhost:27017/
+MONGO_DB_NAME=ciphercore</code></pre>
+          <p>MongoDB is optional — the application works fully without it using local SQLite storage. MongoDB enables global chat, private messaging, and friend system features.</p>
+
+          <h3>Required Collections (auto-created)</h3>
+          <ul>
+            <li><code>users</code> — User accounts with indexed username</li>
+            <li><code>social</code> — Friends and friend requests</li>
+            <li><code>global_chat</code> — Global broadcast messages</li>
+            <li><code>private_chat</code> — Direct messages between users</li>
+            <li><code>server_chat</code> — Per-server channel messages</li>
+            <li><code>logs</code> — Server-side event and error logs</li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo"><div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="logo-text">Ciphe<span>reCore</span></span></a>
+          <p>A powerful multi-purpose security platform built for privacy.</p>
+        </div>
+        <div class="footer-col"><h4>Product</h4><ul><li><a href="features.html">Features</a></li><li><a href="download.html">Download</a></li><li><a href="docs.html">Docs</a></li></ul></div>
+        <div class="footer-col"><h4>Company</h4><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li><li><a href="privacy.html">Privacy</a></li></ul></div>
+        <div class="footer-col"><h4>Support</h4><ul><li><a href="docs.html">Getting Started</a></li><li><a href="mailto:cipherecore@gmail.com">Email</a></li></ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 CiphereCore. All rights reserved.</span>
+        <div class="footer-bottom-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
