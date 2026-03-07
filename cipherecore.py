@@ -67,6 +67,7 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_DURATION = 300  # 5 minutes
 RATE_LIMIT_THRESHOLD = 10  # messages per minute
 MESSAGE_MAX_SIZE = 65536  # 64KB per message
+APP_VERSION = "2.0"
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ciphercore")
 # ========== UI COLOR CONSTANTS ==========
@@ -1225,7 +1226,8 @@ class CipherCoreApp(ctk.CTk):
         super().__init__()
         
         # Configure window
-        self.title("CipherCore - Multi-Purpose Security Platform")
+        self.APP_VERSION = APP_VERSION
+        self.title(f"CipherCore v{self.APP_VERSION} - Multi-Purpose Security Platform")
         self.geometry("1200x800")
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -1369,7 +1371,7 @@ class CipherCoreApp(ctk.CTk):
         brand_frame = ctk.CTkFrame(left_header, fg_color="transparent")
         brand_frame.pack(side="left", fill="y", pady=10)
         
-        ctk.CTkLabel(brand_frame, text="CipherCore", 
+        ctk.CTkLabel(brand_frame, text=f"CipherCore v{self.APP_VERSION}", 
                     font=("Segoe UI", 34, "bold"), text_color=ACCENT_CYAN).pack(anchor="w", pady=(0, 0))
         
         # Right side - Global Actions
@@ -1443,7 +1445,7 @@ class CipherCoreApp(ctk.CTk):
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
         center_frame.pack_propagate(False)
 
-        ctk.CTkLabel(center_frame, text="🔐 CipherCore", font=("Segoe UI", 32, "bold"), text_color=ACCENT_CYAN).pack(pady=(40, 5))
+        ctk.CTkLabel(center_frame, text=f"🔐 CipherCore v{self.APP_VERSION}", font=("Segoe UI", 32, "bold"), text_color=ACCENT_CYAN).pack(pady=(40, 5))
         ctk.CTkLabel(center_frame, text="Secure Authentication", font=("Segoe UI", 14), text_color=SUBTEXT_COLOR).pack(pady=(0, 30))
 
         # Username

@@ -14,20 +14,27 @@
 AppId={{5A8E89B1-2A1E-47D8-86C3-48FA90A97E3B}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-;AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+AppContact={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
-; Uncomment the following line to run in non administrative install mode (install for current user only.)
-;PrivilegesRequired=lowest
+; The following line provides a more professional 'Add/Remove Programs' icon
+UninstallDisplayIcon={app}\{#MyAppIcoName}
+; Modern style and compression
+WizardStyle=modern
+Compression=lzma2/ultra64
+SolidCompression=yes
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
 OutputBaseFilename=CiphereCore_Installer_v2.0
 SetupIconFile={#MyAppIcoName}
-Compression=lzma
-SolidCompression=yes
-WizardStyle=modern
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription="CiphereCore Security Platform Installer"
+VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -38,7 +45,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyAppIcoName}"; DestDir: "{app}"; Flags: ignoreversion
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+; Include any other assets if needed (e.g. .env, database if bundled)
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppIcoName}"
