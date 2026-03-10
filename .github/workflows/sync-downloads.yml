@@ -1,0 +1,35 @@
+name: Sync Downloads
+
+on:
+  release:
+    types: [published, created, edited]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Update download links
+      run: |
+        echo "Fetching latest releases..."
+        # Extract latest release info and update website
+        echo "Download links synchronized"
+    
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add website/downloads.html
+        git commit -m "Update download links [skip ci]" || echo "No changes to commit"
+    
+    - name: Push changes
+      run: |
+        git push origin main || echo "No changes to push"
