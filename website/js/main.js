@@ -278,6 +278,39 @@ document.addEventListener('DOMContentLoaded', () => {
         line.style.transform = 'translateX(0)';
       }, 300 + i * 200);
     });
-  }
+  /* ---------- SpotLight Effect ---------- */
+  document.querySelectorAll('.spotlight-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
+    });
+  });
 
+  /* ---------- Hero Parallax ---------- */
+  const hero = document.getElementById('hero');
+  if (hero) {
+    hero.addEventListener('mousemove', e => {
+      const { clientX, clientY } = e;
+      const { innerWidth, innerHeight } = window;
+      const moveX = (clientX - innerWidth / 2) / 30;
+      const moveY = (clientY - innerHeight / 2) / 30;
+
+      const heroContent = hero.querySelector('.hero-content');
+      const shapes = hero.querySelectorAll('.floating-shape');
+
+      if (heroContent) {
+        heroContent.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      }
+
+      shapes.forEach((shape, i) => {
+        const speed = (i + 1) * 20;
+        const x = (clientX - innerWidth / 2) / speed;
+        const y = (clientY - innerHeight / 2) / speed;
+        shape.style.transform = `translate(${x}px, ${y}px)`;
+      });
+    });
+  }
 });
