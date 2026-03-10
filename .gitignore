@@ -15,38 +15,27 @@ env/
 *.swp
 *.swo
 
-# Build artifacts
+# Build artifacts and temp files
 build/
 dist/
 *.egg-info/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
-# Database
-# # Keep the local db if needed, but usually ignored
-# ciphercore.db
-
-# Certificates
-certs/
-
-# Environment variables
-.env
-.env.local
-
-# Temporary files
+*.spec
 *.tmp
 temp/
 ~*
 
-# Node modules (if applicable)
-node_modules/
-npm-debug.log
+# Database & Logs
+*.db
+*.log
+logs/
 
-# Dependencies
-downloads/*.zip
+# Secrets
+.env
+.env.local
+
+# Installer outputs (We keep them in Output/ but ignore temp ones)
+# Output/
+
+# OS files
+.DS_Store
+Thumbs.db
