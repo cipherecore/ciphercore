@@ -1,5 +1,4 @@
 customtkinter==5.2.2
-tkinter
 cryptography==41.0.7
 Pillow==10.1.0
 qrcode==7.4.2
