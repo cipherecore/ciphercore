@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="1; url=download.html">
+  <title>CiphereCore — Redirecting...</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      background: #050505;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .redirect-card {
+      padding: 3rem;
+      background: #111827;
+      border: 1px solid #1E293B;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+    .text-gradient {
+      background: linear-gradient(135deg, #00D4FF 0%, #3498DB 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+  <script>
+    setTimeout(() => {
+      window.location.href = "download.html";
+    }, 1500);
+  </script>
+</head>
+<body>
+  <div class="redirect-card fade-up">
+    <h2 class="heading-md">Redirecting to <span class="text-gradient">Download Page</span></h2>
+    <p class="body-md" style="margin-top:1rem;color:#94A3B8">Your download should start in a second...</p>
+    <div style="margin-top:2rem"><a href="download.html" class="btn btn-primary">Click here if not redirected</a></div>
+  </div>
+</body>
+</html>

@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const steps = [
       { progress: 10, text: 'Preparing download...' },
       { progress: 25, text: 'Verifying system compatibility...' },
-      { progress: 45, text: 'Downloading CiphereCore v2.0...' },
+      { progress: 45, text: 'Downloading CiphereCore v2.1...' },
       { progress: 65, text: 'Downloading encryption modules...' },
       { progress: 80, text: 'Verifying file integrity (SHA-256)...' },
       { progress: 95, text: 'Finalizing package...' },
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Navigate directly to the file to bypass any blob/cors issues
     // that cause Chromium browsers to assign UUIDs to downloaded files.
     // Ensure we trigger the download by navigating explicitly to the actual file path.
-    window.location.assign(url || 'CiphereCore_Installer_v2.0.exe');
+    window.location.assign(url || 'CiphereCore_Installer_v2.1.exe');
   }
 
   /* ---------- Toast Notification ---------- */
