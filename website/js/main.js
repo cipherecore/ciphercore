@@ -278,6 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
         line.style.transform = 'translateX(0)';
       }, 300 + i * 200);
     });
+  }
+
   /* ---------- SpotLight Effect ---------- */
   document.querySelectorAll('.spotlight-card').forEach(card => {
     card.addEventListener('mousemove', e => {
