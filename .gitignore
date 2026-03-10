@@ -1,26 +1,52 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.env
+
+# Virtual environments
 .venv/
-env/
 venv/
 ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.idea/
+env/
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Database
+# # Keep the local db if needed, but usually ignored
+# ciphercore.db
+
+# Certificates
+certs/
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+temp/
+~*
+
+# Node modules (if applicable)
+node_modules/
+npm-debug.log
+
+# Dependencies
+downloads/*.zip

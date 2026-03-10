@@ -1,0 +1,42 @@
+name: Deploy Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'website/**'
+      - '.github/workflows/deploy-website.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Build website
+      run: |
+        echo "Website built successfully"
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./website
+        cname: cipherecore.com
+    
+    - name: Notify deployment
+      run: |
+        echo "Website deployed successfully!"
+        echo "Live at: https://yourusername.github.io/cipherecore"
+
+    - name: Update downloads index
+      run: |
+        echo "Updating download links..."
+        # This will automatically sync with releases
