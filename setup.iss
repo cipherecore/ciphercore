@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "CiphereCore"
-#define MyAppVersion "2.0"
+#define MyAppVersion "2.1"
 #define MyAppPublisher "CiphereCore"
 #define MyAppURL "https://cipherecore.com"
 #define MyAppExeName "CipherCore.exe"
@@ -30,7 +30,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-OutputBaseFilename=CiphereCore_Installer_v2.0
+OutputBaseFilename=CiphereCore_Installer_v2.1
 SetupIconFile={#MyAppIcoName}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription="CiphereCore Security Platform Installer"

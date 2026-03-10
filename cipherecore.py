@@ -67,7 +67,7 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_DURATION = 300  # 5 minutes
 RATE_LIMIT_THRESHOLD = 10  # messages per minute
 MESSAGE_MAX_SIZE = 65536  # 64KB per message
-APP_VERSION = "2.0"
+APP_VERSION = "2.1"
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ciphercore")
 # ========== UI COLOR CONSTANTS ==========
@@ -1268,7 +1268,6 @@ class CipherCoreApp(ctk.CTk):
         self.server = None
         self.message_encryption_enabled = False
         self.message_decryption_enabled = False
-        self.bubble_mode_enabled = False # Toggle for terminal vs modern chat bubbles
         self.message_encryption_password = ""
         self.message_storage = {}
         self.chat_messages = []
@@ -1707,11 +1706,6 @@ class CipherCoreApp(ctk.CTk):
         inner_tools = ctk.CTkFrame(tools_bar, fg_color="transparent")
         inner_tools.pack(fill="y", padx=10)
         
-        self.bubble_var = ctk.BooleanVar(value=False)
-        ctk.CTkSwitch(inner_tools, text="Bubbles", variable=self.bubble_var, 
-                      command=self._toggle_bubble_mode, font=("Segoe UI", 10),
-                      width=80, progress_color=ACCENT_BLUE).pack(side="right", padx=10)
-        
         # Connection status indicator in tools bar
         self.connection_status_btn = ctk.CTkButton(inner_tools, text="🔴 Offline", width=100, height=28,
                                                  fg_color="#1E293B", text_color=DANGER_RED,
@@ -1786,12 +1780,22 @@ class CipherCoreApp(ctk.CTk):
         self._poll_friend_requests()
 
     def _poll_mongo_chats(self):
-        """Periodically refresh chat if in MongoDB mode."""
+        """Periodically refresh chat if in MongoDB mode with adaptive timing."""
         if self._closing:
             return
+        
+        # Only poll if the app is focused or the Chat tab is active to save resources
         if self.is_authenticated and self.chat_mode.get() != "server":
+            # If the user is active in this tab, poll more frequently (2s)
+            # otherwise poll less frequently (5s)
+            selected_tab = self.tabview.get()
+            interval = 2000 if "Chat" in selected_tab else 5000
             self.refresh_chat_display()
-        self.after(3000, self._poll_mongo_chats)
+            self.after(interval, self._poll_mongo_chats)
+        else:
+            # Not in MongoDB mode, just check again later
+            self.after(3000, self._poll_mongo_chats)
+
 
     def _poll_friend_requests(self):
         """Show a badge on the Requests button if there are pending requests."""
@@ -2118,7 +2122,7 @@ class CipherCoreApp(ctk.CTk):
                      width=120, fg_color="#1F2937").pack(pady=10)
 
     def refresh_chat_display(self):
-        """Load history from MongoDB into the ACTIVE mode's chat box with Bubble support."""
+        """Load new messages from MongoDB into the ACTIVE mode's chat box incrementally."""
         if not self.mongo_manager or not self.mongo_manager.connected or not self.current_user:
             return
 
@@ -2127,26 +2131,52 @@ class CipherCoreApp(ctk.CTk):
             self._refresh_chat_with_encryption_state()
             return
 
+        # Initialize tracking for incremental updates if not present
+        if not hasattr(self, '_last_messages'):
+            self._last_messages = {} # (mode, recipient) -> last_seen_timestamp
+
         history = []
         box = None
+        track_key = (mode, self.active_private_recipient)
 
         if mode == "global":
-            history = self.mongo_manager.get_global_messages(limit=80)
+            history = self.mongo_manager.get_global_messages(limit=50)
             box = self.global_chat_box
         elif mode == "private":
             if not self.active_private_recipient:
                 return
             history = self.mongo_manager.get_private_messages(
-                self.current_user["username"], self.active_private_recipient, limit=80)
+                self.current_user["username"], self.active_private_recipient, limit=50)
             box = self.private_chat_box
 
         if not box: return
+
+        # Get last seen timestamp for this chat context
+        last_ts = self._last_messages.get(track_key)
+        
+        # If the box is empty or mode switched, we might need a full reload
+        is_empty = box.get("1.0", "end-1c").strip() == ""
+        
+        # Filter history to only include messages newer than last_ts
+        new_messages = []
+        if last_ts and not is_empty:
+            new_messages = [m for m in history if m["timestamp"] > last_ts]
+        else:
+            new_messages = history
+            box.configure(state="normal")
+            box.delete("1.0", "end") # Full reload for first time or switch
+
+        if not new_messages:
+            return
+
         box.configure(state="normal")
-        box.delete("1.0", "end")
+        
+        # Check if user is at the bottom before adding content
+        at_bottom = box.yview()[1] > 0.95
         
         pwd = self.msg_enc_pwd.get().strip() if hasattr(self, 'msg_enc_pwd') else ""
         
-        for msg in history:
+        for msg in new_messages:
             ts      = msg["timestamp"].strftime("%H:%M:%S")
             sender  = msg.get("sender", "?")
             content = msg.get("content", "")
@@ -2160,35 +2190,32 @@ class CipherCoreApp(ctk.CTk):
                     try:
                         decrypted = decrypt_fernet(content, pwd)
                         display_content = decrypted
-                        indicator = " 🔒"
+                        indicator = " \ud83d\udd12"
                     except:
-                        indicator = " 🔒"
+                        indicator = " \ud83d\udd12"
                 else:
-                    indicator = " 🔒"
+                    indicator = " \ud83d\udd12"
             
             label = "You" if is_me else sender
             
-            if self.bubble_mode_enabled:
-                # Bubble Mode
-                tag_name = f"bubble_{id(msg)}"
-                box.insert("end", f" {label} ", "username")
-                box.insert("end", f" {ts}\n", "timestamp")
-                box.insert("end", f" {display_content}{indicator} ", tag_name)
-                box.insert("end", "\n\n")
-                
-                bg = GLOW_COLOR if is_me else "#1E293B"
-                box.tag_config(tag_name, background=bg, foreground=TEXT_COLOR, lmargin1=20, lmargin2=20, rmargin=20, spacing1=5, spacing3=5)
-            else:
-                # Terminal Mode
-                tag = "success" if is_me else "normal"
-                box.insert("end", f"[{ts}] {label}: {display_content}{indicator}\n", tag)
+            # Terminal Mode
+            tag = "success" if is_me else "normal"
+            box.insert("end", f"[{ts}] {label}: {display_content}{indicator}\n", tag)
             
+            # Update last seen timestamp
+            if not last_ts or msg["timestamp"] > last_ts:
+                last_ts = msg["timestamp"]
+
+        self._last_messages[track_key] = last_ts
+
         box.tag_config("success", foreground=SUCCESS_GREEN)
         box.tag_config("normal",  foreground=TEXT_COLOR)
-        box.tag_config("username", foreground=ACCENT_CYAN, font=("Segoe UI", 10, "bold"))
-        box.tag_config("timestamp", foreground=SUBTEXT_COLOR, font=("Segoe UI", 8))
         box.configure(state="disabled")
-        box.see("end")
+        
+        # Only auto-scroll if user was at bottom or it's a new load
+        if at_bottom or is_empty:
+            box.see("end")
+
     
     def _looks_encrypted(self, content: str) -> bool:
         """Check if content looks like it's encrypted (base64 or Fernet format)"""
@@ -2391,6 +2418,18 @@ class CipherCoreApp(ctk.CTk):
         ctk.CTkLabel(info_frame, text=info_text, font=("Segoe UI", 11), 
                     justify="left", text_color=SUBTEXT_COLOR).pack(padx=15, pady=12)
 
+        # Progress Section (Fixed: Add missing components)
+        self.progress_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self.progress_frame.pack(fill="x", pady=10)
+        
+        self.progress_label = ctk.CTkLabel(self.progress_frame, text="Ready", font=("Segoe UI", 12))
+        self.progress_label.pack(pady=(0, 5))
+        
+        self.progress_bar = ctk.CTkProgressBar(self.progress_frame, width=600, height=12)
+        self.progress_bar.pack(pady=5)
+        self.progress_bar.set(0)
+
+
 
     def build_tools_tab(self):
         """Build the tools interface with modern grid layout"""
@@ -2474,13 +2513,14 @@ class CipherCoreApp(ctk.CTk):
     # ========== CHAT METHODS ==========
         
     # ========== CHAT METHODS ==========
-    def _toggle_bubble_mode(self):
-        """Toggle between terminal and bubble chat view"""
-        self.bubble_mode_enabled = self.bubble_var.get()
-        self._refresh_chat_with_encryption_state()
 
     def chat_add(self, message, msg_type="message", target_box=None, encrypted_content=""):
-        """Add message with support for Bubbles and Username Highlighting"""
+        """Add message with thread-safety, Bubbles, and Username Highlighting"""
+        # Ensure we always run UI updates on the main thread
+        if threading.current_thread() != threading.main_thread():
+            self.after(0, self.chat_add, message, msg_type, target_box, encrypted_content)
+            return
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         display_message = message
         indicator = ""
@@ -2495,12 +2535,12 @@ class CipherCoreApp(ctk.CTk):
                     display_message = decrypt_fernet(raw_content, pwd)
                     if ": " in encrypted_content:
                         display_message = f"{encrypted_content.split(': ', 1)[0]}: {display_message}"
-                    indicator = " 🔒"
+                    indicator = " \ud83d\udd12"
                 except:
-                    indicator = " 🔒"
+                    indicator = " \ud83d\udd12"
                     display_message = encrypted_content
             else:
-                indicator = " 🔒"
+                indicator = " \ud83d\udd12"
                 display_message = encrypted_content
         
         msg_obj = {'timestamp': timestamp, 'content': message, 'type': msg_type, 'encrypted_content': encrypted_content}
@@ -2515,43 +2555,25 @@ class CipherCoreApp(ctk.CTk):
         try:
             box.configure(state="normal")
             
-            # Modern Bubble Mode or Terminal Mode
-            if self.bubble_mode_enabled and msg_type == "message" and ": " in display_message:
-                user, text = display_message.split(": ", 1)
-                is_me = user.startswith("You")
-                
-                # Bubble Layout simulation using tags
-                tag_name = f"bubble_{len(self.chat_messages)}"
-                box.insert("end", f" {user} ", "username")
-                box.insert("end", f" {timestamp}\n", "timestamp")
-                box.insert("end", f" {text}{indicator} ", tag_name)
-                box.insert("end", "\n\n")
-                
-                # Configure bubble tag
-                bg = "#1E293B" if not is_me else GLOW_COLOR
-                fg = TEXT_COLOR
-                box.tag_config(tag_name, background=bg, foreground=fg, lmargin1=20, lmargin2=20, rmargin=20, spacing1=5, spacing3=5)
-                box.tag_config("username", foreground=ACCENT_CYAN, font=("Segoe UI", 10, "bold"))
-                box.tag_config("timestamp", foreground=SUBTEXT_COLOR, font=("Segoe UI", 8))
-            else:
-                # Terminal Mode
-                if msg_type == "system": formatted = f"[{timestamp}] 🔹 {display_message}"
-                elif msg_type == "error": formatted = f"[{timestamp}] ❌ {display_message}"
-                elif msg_type == "success": formatted = f"[{timestamp}] ✅ {display_message}{indicator}"
-                elif msg_type == "warning": formatted = f"[{timestamp}] ⚠️ {display_message}"
-                else: formatted = f"[{timestamp}] {display_message}{indicator}"
-                
-                box.insert("end", formatted + "\n", msg_type if msg_type in ["system","error","success","warning"] else "normal")
+            # Terminal Mode
+            if msg_type == "system": formatted = f"[{timestamp}] \ud83d\udd39 {display_message}"
+            elif msg_type == "error": formatted = f"[{timestamp}] \u274c {display_message}"
+            elif msg_type == "success": formatted = f"[{timestamp}] \u2705 {display_message}{indicator}"
+            elif msg_type == "warning": formatted = f"[{timestamp}] \u26a0\ufe0f {display_message}"
+            else: formatted = f"[{timestamp}] {display_message}{indicator}"
             
-            box.configure(state="disabled")
-            box.see("end")
+            box.insert("end", formatted + "\n", msg_type if msg_type in ["system","error","success","warning"] else "normal")
+
             
-            # Global tag configs
             box.tag_config("system", foreground=ACCENT_BLUE)
             box.tag_config("error",  foreground=DANGER_RED)
             box.tag_config("success", foreground=SUCCESS_GREEN)
             box.tag_config("warning", foreground=WARNING_ORANGE)
             box.tag_config("normal",  foreground=TEXT_COLOR)
+            
+            box.configure(state="disabled")
+            box.see("end")
+            
         except Exception as e:
             print(f"Chat error: {e}")
         
@@ -2632,11 +2654,12 @@ class CipherCoreApp(ctk.CTk):
 
         if ok:
             self.msg_entry.delete(0, "end")
-            self.refresh_chat_display()
+            # Force an immediate check for the new message
+            self.after(500, self.refresh_chat_display)
             self.mongo_manager.save_log(f"{sender} sent {mode} message", "INFO", "chat", sender)
         else:
-            self.chat_add("❌ Message failed to send", "error")
-            self.chat_add("❌ Failed to send message", "error", target_box=self.chat_box)
+            self.chat_add("\u274c Message failed to send", "error")
+
 
     def toggle_message_encryption(self):
         """Toggle outgoing message encryption"""
@@ -2656,13 +2679,26 @@ class CipherCoreApp(ctk.CTk):
             self.chat_add("🔓 Outgoing Encryption Disabled (Messages will be sent as plaintext)", "system")
 
     def toggle_message_decryption(self):
-        """Toggle incoming message decryption view"""
+        """Toggle incoming message decryption view and refresh display immediately."""
         self.message_decryption_enabled = self.msg_dec_var.get()
-        self._refresh_chat_with_encryption_state()
-        if self.message_decryption_enabled:
-            self.chat_add("🛡️ Decryption Mode Active (Past messages will be decrypted if password matches)", "success")
+        
+        # Immediate refresh based on mode
+        mode = self.chat_mode.get()
+        if mode == "server":
+            self._refresh_chat_with_encryption_state()
         else:
-            self.chat_add("♻️ Decryption Mode Disabled (Encrypted messages shown as raw ciphertext)", "system")
+            # Force a full reload for MongoDB chats to apply decryption to history
+            if hasattr(self, '_last_messages'):
+                track_key = (mode, self.active_private_recipient)
+                if track_key in self._last_messages:
+                    del self._last_messages[track_key]
+            self.refresh_chat_display()
+
+        if self.message_decryption_enabled:
+            self.chat_add("🛡\ufe0f Decryption Mode Active (Messages will be decrypted if password matches)", "success")
+        else:
+            self.chat_add("\u267b\ufe0f Decryption Mode Disabled (Showing raw ciphertext)", "system")
+
     
     def generate_msg_encryption_pwd(self):
         """Generate random password for message encryption"""
@@ -2674,7 +2710,25 @@ class CipherCoreApp(ctk.CTk):
     def _on_msg_enc_pwd_change(self, event=None):
         """Triggered when encryption password entry is modified - updates UI live"""
         if self.message_decryption_enabled:
-            self._refresh_chat_with_encryption_state()
+            mode = self.chat_mode.get()
+            if mode == "server":
+                self._refresh_chat_with_encryption_state()
+            else:
+                # For MongoDB modes, we don't want to spam the database on every keypress,
+                # but we do want a fresh render if they stop typing.
+                # Use a small delay to debounce.
+                if hasattr(self, '_pwd_refresh_after'):
+                    self.after_cancel(self._pwd_refresh_after)
+                
+                def force_refresh():
+                    if hasattr(self, '_last_messages'):
+                        track_key = (mode, self.active_private_recipient)
+                        if track_key in self._last_messages:
+                            del self._last_messages[track_key]
+                    self.refresh_chat_display()
+                
+                self._pwd_refresh_after = self.after(800, force_refresh)
+
     
     def _refresh_chat_with_encryption_state(self):
         """Full re-rendering of the server chat box with Bubble/Terminal support."""
@@ -2715,35 +2769,19 @@ class CipherCoreApp(ctk.CTk):
                         display_msg = enc_content
                         indicator = " 🔒"
                 
-                # Bubble Mode Logic
-                if self.bubble_mode_enabled and msg_type == "message" and ": " in display_msg:
-                    user, text = display_msg.split(": ", 1)
-                    is_me = user.startswith("You")
-                    tag_name = f"bubble_srv_{id(msg_obj)}"
-                    
-                    box.insert("end", f" {user} ", "username")
-                    box.insert("end", f" {ts}\n", "timestamp")
-                    box.insert("end", f" {text}{indicator} ", tag_name)
-                    box.insert("end", "\n\n")
-                    
-                    bg = GLOW_COLOR if is_me else "#1E293B"
-                    box.tag_config(tag_name, background=bg, foreground=TEXT_COLOR, lmargin1=20, lmargin2=20, rmargin=20, spacing1=5, spacing3=5)
-                else:
-                    # Terminal Mode
-                    if msg_type == "system": formatted = f"[{ts}] 🔹 {display_msg}"
-                    elif msg_type == "error": formatted = f"[{ts}] ❌ {display_msg}"
-                    elif msg_type == "success": formatted = f"[{ts}] ✅ {display_msg}{indicator}"
-                    elif msg_type == "warning": formatted = f"[{ts}] ⚠️ {display_msg}"
-                    else: formatted = f"[{ts}] {display_msg}{indicator}"
-                    box.insert("end", formatted + "\n", msg_type if msg_type in ["system","error","success","warning"] else "normal")
+                # Terminal Mode
+                if msg_type == "system": formatted = f"[{ts}] \ud83d\udd39 {display_msg}"
+                elif msg_type == "error": formatted = f"[{ts}] \u274c {display_msg}"
+                elif msg_type == "success": formatted = f"[{ts}] \u2705 {display_msg}{indicator}"
+                elif msg_type == "warning": formatted = f"[{ts}] \u26a0\ufe0f {display_msg}"
+                else: formatted = f"[{ts}] {display_msg}{indicator}"
+                box.insert("end", formatted + "\n", msg_type if msg_type in ["system","error","success","warning"] else "normal")
             
             box.tag_config("system", foreground=ACCENT_BLUE)
             box.tag_config("error",  foreground=DANGER_RED)
             box.tag_config("success", foreground=SUCCESS_GREEN)
             box.tag_config("warning", foreground=WARNING_ORANGE)
             box.tag_config("normal",  foreground=TEXT_COLOR)
-            box.tag_config("username", foreground=ACCENT_CYAN, font=("Segoe UI", 10, "bold"))
-            box.tag_config("timestamp", foreground=SUBTEXT_COLOR, font=("Segoe UI", 8))
             box.configure(state="disabled")
             box.see("end")
         except Exception as e:
