@@ -30,6 +30,9 @@ from typing import Optional, Dict, List, Tuple, Any
 import bcrypt
 from dotenv import load_dotenv
 import sys
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- ASSET PATH HELPER ---
 def resource_path(relative_path):
@@ -67,9 +70,12 @@ MAX_LOGIN_ATTEMPTS = 5
 LOGIN_LOCKOUT_DURATION = 300  # 5 minutes
 RATE_LIMIT_THRESHOLD = 10  # messages per minute
 MESSAGE_MAX_SIZE = 65536  # 64KB per message
-APP_VERSION = "2.1"
+APP_VERSION = "2.5"
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "ciphercore")
+SMTP_EMAIL = os.getenv("SMTP_EMAIL", "")
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "")
+OTP_EXPIRY_SECONDS = 300  # 5 minutes
 # ========== UI COLOR CONSTANTS ==========
 BG_COLOR = "#080B10"           # Deeper black
 HEADER_COLOR = "#0D1117"
@@ -177,6 +183,10 @@ def validate_username(username: str) -> Tuple[bool, str]:
         return False, "Username must be at most 32 characters"
     if not all(c.isalnum() or c in '-_' for c in username):
         return False, "Username can only contain letters, numbers, hyphens, and underscores"
+    if username.isdigit():
+        return False, "Username cannot be only numbers. Must contain at least one letter."
+    if not any(c.isalpha() for c in username):
+        return False, "Username must contain at least one letter"
     return True, ""
 
 def validate_email(email: str) -> Tuple[bool, str]:
@@ -202,8 +212,36 @@ def sanitize_input(text: str, max_length: int = 1000) -> str:
     return text.strip()[:max_length]
 
 # ========== ENCRYPTION FUNCTIONS ==========
+def check_password_strength(password: str) -> Tuple[int, list]:
+    """Check password strength and return (score 0-5, feedback list)"""
+    score = 0
+    feedback = []
+    if len(password) >= 6:
+        score += 1
+    if len(password) >= 10:
+        score += 1
+    if any(c.isupper() for c in password):
+        score += 1
+    else:
+        feedback.append("Add uppercase letters")
+    if any(c.isdigit() for c in password):
+        score += 1
+    else:
+        feedback.append("Add numbers")
+    if any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in password):
+        score += 1
+    else:
+        feedback.append("Add special characters")
+    return score, feedback
+
 def validate_password(password: str) -> Tuple[bool, str]:
-    """Validate password - no restrictions, any password is allowed"""
+    """Validate password strength"""
+    if not password:
+        return False, "Password cannot be empty"
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters"
+    if password.isspace():
+        return False, "Password cannot be only spaces"
     return True, ""
 
 def hash_password(password: str) -> str:
@@ -593,11 +631,54 @@ class MongoManager:
         )
         self.db.private_chat.create_index("timestamp", background=True)
 
+    # ── OTP SYSTEM ─────────────────────────────────────────────────────────
+    def store_otp(self, email: str, otp_code: str) -> bool:
+        """Store an OTP code with expiry in MongoDB."""
+        if not self.connected:
+            return False
+        try:
+            # Remove any existing OTP for this email
+            self.db.otp_codes.delete_many({"email": email})
+            self.db.otp_codes.insert_one({
+                "email": email,
+                "code": otp_code,
+                "created_at": datetime.now(),
+                "expires_at": datetime.now() + timedelta(seconds=OTP_EXPIRY_SECONDS)
+            })
+            return True
+        except Exception:
+            return False
+
+    def verify_otp(self, email: str, otp_code: str) -> Tuple[bool, str]:
+        """Verify an OTP code for the given email."""
+        if not self.connected:
+            return False, "MongoDB not connected"
+        try:
+            record = self.db.otp_codes.find_one({
+                "email": email,
+                "code": otp_code,
+                "expires_at": {"$gt": datetime.now()}
+            })
+            if record:
+                # Delete the OTP after successful verification
+                self.db.otp_codes.delete_many({"email": email})
+                return True, "OTP verified successfully"
+            # Check if expired
+            expired = self.db.otp_codes.find_one({"email": email, "code": otp_code})
+            if expired:
+                self.db.otp_codes.delete_many({"email": email})
+                return False, "OTP has expired. Please request a new one."
+            return False, "Invalid OTP code"
+        except Exception as e:
+            return False, str(e)
+
     def register(self, username, password, email=""):
         if not self.connected: return False, "MongoDB not connected"
         try:
             if self.db.users.find_one({"username": username}):
                 return False, "Username already exists"
+            if email and self.db.users.find_one({"email": email}):
+                return False, "Email already registered"
             
             user_data = {
                 "username": username,
@@ -1432,7 +1513,11 @@ class CipherCoreApp(ctk.CTk):
         self.stats_label = ctk.CTkLabel(self.main_container, text="")
 
     def show_auth_screen(self):
-        """Displays login/registration screen"""
+        """Displays login screen (default entry point)"""
+        self._show_login_screen()
+
+    def _show_login_screen(self):
+        """Show dedicated LOGIN page"""
         if self.auth_frame:
             self.auth_frame.destroy()
         
@@ -1440,26 +1525,308 @@ class CipherCoreApp(ctk.CTk):
         self.auth_frame.pack(fill="both", expand=True)
 
         # Center content
-        center_frame = ctk.CTkFrame(self.auth_frame, fg_color=CARD_BG, corner_radius=15, width=400, height=500)
+        center_frame = ctk.CTkFrame(self.auth_frame, fg_color=CARD_BG, corner_radius=15, width=420, height=460)
         center_frame.place(relx=0.5, rely=0.5, anchor="center")
         center_frame.pack_propagate(False)
 
-        ctk.CTkLabel(center_frame, text=f"🔐 CipherCore v{self.APP_VERSION}", font=("Segoe UI", 32, "bold"), text_color=ACCENT_CYAN).pack(pady=(40, 5))
-        ctk.CTkLabel(center_frame, text="Secure Authentication", font=("Segoe UI", 14), text_color=SUBTEXT_COLOR).pack(pady=(0, 30))
+        ctk.CTkLabel(center_frame, text=f"🔐 CipherCore v{self.APP_VERSION}", font=("Segoe UI", 28, "bold"), text_color=ACCENT_CYAN).pack(pady=(35, 3))
+        ctk.CTkLabel(center_frame, text="Welcome Back", font=("Segoe UI", 14), text_color=SUBTEXT_COLOR).pack(pady=(0, 25))
 
         # Username
-        ctk.CTkLabel(center_frame, text="Username", font=("Segoe UI", 12), text_color=TEXT_COLOR).pack(anchor="w", padx=40)
-        self.auth_user_entry = ctk.CTkEntry(center_frame, placeholder_text="Enter username", width=320, height=40, fg_color="#0D1117")
-        self.auth_user_entry.pack(pady=(5, 15))
+        ctk.CTkLabel(center_frame, text="Username", font=("Segoe UI", 12), text_color=TEXT_COLOR).pack(anchor="w", padx=50)
+        self.auth_user_entry = ctk.CTkEntry(center_frame, placeholder_text="Enter your username", width=320, height=40, fg_color="#0D1117", border_color=BORDER_COLOR)
+        self.auth_user_entry.pack(pady=(5, 12))
 
         # Password
-        ctk.CTkLabel(center_frame, text="Password", font=("Segoe UI", 12), text_color=TEXT_COLOR).pack(anchor="w", padx=40)
-        self.auth_pass_entry = ctk.CTkEntry(center_frame, placeholder_text="Enter password", show="*", width=320, height=40, fg_color="#0D1117")
+        ctk.CTkLabel(center_frame, text="Password", font=("Segoe UI", 12), text_color=TEXT_COLOR).pack(anchor="w", padx=50)
+        self.auth_pass_entry = ctk.CTkEntry(center_frame, placeholder_text="Enter your password", show="•", width=320, height=40, fg_color="#0D1117", border_color=BORDER_COLOR)
         self.auth_pass_entry.pack(pady=(5, 25))
+        self.auth_pass_entry.bind("<Return>", lambda e: self.handle_login())
 
-        # Buttons
-        ctk.CTkButton(center_frame, text="Login", command=self.handle_login, width=320, height=45, fg_color=ACCENT_BLUE).pack(pady=5)
-        ctk.CTkButton(center_frame, text="Register", command=self.handle_register, width=320, height=45, fg_color="transparent", border_width=1).pack(pady=5)
+        # Login Button
+        ctk.CTkButton(center_frame, text="🔑  Login", command=self.handle_login, width=320, height=45,
+                      fg_color=ACCENT_BLUE, hover_color="#2563EB", font=("Segoe UI", 14, "bold"),
+                      corner_radius=10).pack(pady=(0, 15))
+
+        # Switch to Register
+        switch_frame = ctk.CTkFrame(center_frame, fg_color="transparent")
+        switch_frame.pack()
+        ctk.CTkLabel(switch_frame, text="Don't have an account?", font=("Segoe UI", 12), text_color=SUBTEXT_COLOR).pack(side="left")
+        ctk.CTkButton(switch_frame, text="Register", command=self._show_register_screen, width=80, height=28,
+                      fg_color="transparent", hover_color="#1E293B", text_color=ACCENT_CYAN,
+                      font=("Segoe UI", 12, "bold")).pack(side="left", padx=4)
+
+    def _show_register_screen(self):
+        """Show dedicated REGISTER page with inline OTP verification"""
+        if self.auth_frame:
+            self.auth_frame.destroy()
+        
+        self.auth_frame = ctk.CTkFrame(self, fg_color=BG_COLOR)
+        self.auth_frame.pack(fill="both", expand=True)
+
+        # Track OTP verification state
+        self._otp_verified = False
+        self._otp_email = ""
+
+        # Center card
+        center_frame = ctk.CTkFrame(self.auth_frame, fg_color=CARD_BG, corner_radius=15, width=480, height=680)
+        center_frame.place(relx=0.5, rely=0.5, anchor="center")
+        center_frame.pack_propagate(False)
+
+        ctk.CTkLabel(center_frame, text=f"🔐 CipherCore v{self.APP_VERSION}", font=("Segoe UI", 26, "bold"), text_color=ACCENT_CYAN).pack(pady=(20, 2))
+        ctk.CTkLabel(center_frame, text="Create Your Account", font=("Segoe UI", 14), text_color=SUBTEXT_COLOR).pack(pady=(0, 14))
+
+        # ── Username ──
+        ctk.CTkLabel(center_frame, text="Username  (must contain a letter, not only numbers)", font=("Segoe UI", 11), text_color=TEXT_COLOR).pack(anchor="w", padx=45)
+        self.reg_user_entry = ctk.CTkEntry(center_frame, placeholder_text="e.g. haider_01", width=390, height=36, fg_color="#0D1117", border_color=BORDER_COLOR)
+        self.reg_user_entry.pack(pady=(3, 8))
+
+        # ── Email + Send OTP button side by side ──
+        ctk.CTkLabel(center_frame, text="Email  (required for OTP verification)", font=("Segoe UI", 11), text_color=TEXT_COLOR).pack(anchor="w", padx=45)
+        email_row = ctk.CTkFrame(center_frame, fg_color="transparent")
+        email_row.pack(pady=(3, 4))
+        self.reg_email_entry = ctk.CTkEntry(email_row, placeholder_text="you@example.com", width=260, height=36, fg_color="#0D1117", border_color=BORDER_COLOR)
+        self.reg_email_entry.pack(side="left", padx=(0, 8))
+        self.send_otp_btn = ctk.CTkButton(email_row, text="📧 Send OTP", width=120, height=36,
+                                           fg_color=ACCENT_BLUE, hover_color="#2563EB", font=("Segoe UI", 12, "bold"),
+                                           corner_radius=8, command=self._send_otp_clicked)
+        self.send_otp_btn.pack(side="left")
+
+        # ── OTP status label (shows after sending) ──
+        self.otp_status_label = ctk.CTkLabel(center_frame, text="", font=("Segoe UI", 10), text_color=SUBTEXT_COLOR)
+        self.otp_status_label.pack(anchor="w", padx=45)
+
+        # ── OTP Input Row (hidden initially) ──
+        self.otp_input_frame = ctk.CTkFrame(center_frame, fg_color="transparent")
+        # Will be packed when OTP is sent
+
+        self.reg_otp_entry = ctk.CTkEntry(self.otp_input_frame, placeholder_text="Enter 6-digit OTP", width=200, height=36,
+                                           font=("Segoe UI", 14), justify="center",
+                                           fg_color="#0D1117", border_color=ACCENT_CYAN)
+        self.reg_otp_entry.pack(side="left", padx=(0, 8))
+        self.verify_otp_btn = ctk.CTkButton(self.otp_input_frame, text="✅ Verify", width=100, height=36,
+                                             fg_color=SUCCESS_GREEN, hover_color="#059669", font=("Segoe UI", 12, "bold"),
+                                             corner_radius=8, command=self._verify_otp_clicked)
+        self.verify_otp_btn.pack(side="left")
+        self.resend_btn = ctk.CTkButton(self.otp_input_frame, text="🔄", width=36, height=36,
+                                         fg_color="#374151", hover_color="#4B5563", font=("Segoe UI", 14),
+                                         corner_radius=8, command=self._send_otp_clicked)
+        self.resend_btn.pack(side="left", padx=(6, 0))
+
+        # ── Password ──
+        ctk.CTkLabel(center_frame, text="Password  (minimum 6 characters)", font=("Segoe UI", 11), text_color=TEXT_COLOR).pack(anchor="w", padx=45, pady=(8, 0))
+        self.reg_pass_entry = ctk.CTkEntry(center_frame, placeholder_text="Create a password", show="•", width=390, height=36, fg_color="#0D1117", border_color=BORDER_COLOR)
+        self.reg_pass_entry.pack(pady=(3, 3))
+
+        # Password strength indicator
+        self.pwd_strength_label = ctk.CTkLabel(center_frame, text="", font=("Segoe UI", 10), text_color=SUBTEXT_COLOR)
+        self.pwd_strength_label.pack(anchor="w", padx=45)
+        self.reg_pass_entry.bind("<KeyRelease>", self._update_password_strength)
+
+        # ── Confirm Password ──
+        ctk.CTkLabel(center_frame, text="Confirm Password", font=("Segoe UI", 11), text_color=TEXT_COLOR).pack(anchor="w", padx=45, pady=(4, 0))
+        self.reg_confirm_entry = ctk.CTkEntry(center_frame, placeholder_text="Re-enter password", show="•", width=390, height=36, fg_color="#0D1117", border_color=BORDER_COLOR)
+        self.reg_confirm_entry.pack(pady=(3, 12))
+
+        # ── Create Account Button ──
+        ctk.CTkButton(center_frame, text="🚀  Create Account", command=self._handle_register_final, width=390, height=44,
+                      fg_color=SUCCESS_GREEN, hover_color="#059669", font=("Segoe UI", 14, "bold"),
+                      corner_radius=10).pack(pady=(0, 10))
+
+        # ── Switch to Login ──
+        switch_frame = ctk.CTkFrame(center_frame, fg_color="transparent")
+        switch_frame.pack()
+        ctk.CTkLabel(switch_frame, text="Already have an account?", font=("Segoe UI", 12), text_color=SUBTEXT_COLOR).pack(side="left")
+        ctk.CTkButton(switch_frame, text="Login", command=self._show_login_screen, width=60, height=28,
+                      fg_color="transparent", hover_color="#1E293B", text_color=ACCENT_CYAN,
+                      font=("Segoe UI", 12, "bold")).pack(side="left", padx=4)
+
+    def _update_password_strength(self, event=None):
+        """Update password strength indicator in real-time"""
+        pwd = self.reg_pass_entry.get()
+        if not pwd:
+            self.pwd_strength_label.configure(text="", text_color=SUBTEXT_COLOR)
+            return
+        score, feedback = check_password_strength(pwd)
+        if len(pwd) < 6:
+            self.pwd_strength_label.configure(text=f"⚠ Too short ({len(pwd)}/6 min)", text_color=DANGER_RED)
+        elif score <= 2:
+            self.pwd_strength_label.configure(text=f"🔴 Weak  —  {', '.join(feedback[:2])}", text_color=DANGER_RED)
+        elif score <= 3:
+            self.pwd_strength_label.configure(text="🟡 Fair", text_color=WARNING_ORANGE)
+        elif score <= 4:
+            self.pwd_strength_label.configure(text="🟢 Strong", text_color=SUCCESS_GREEN)
+        else:
+            self.pwd_strength_label.configure(text="🟢 Very Strong", text_color=SUCCESS_GREEN)
+
+    def _send_otp_email(self, recipient_email: str, otp_code: str) -> Tuple[bool, str]:
+        """Send OTP email via Gmail SMTP (automated from your own email)"""
+        if not SMTP_EMAIL or not SMTP_APP_PASSWORD:
+            return False, "Email credentials not configured.\nSet SMTP_EMAIL and SMTP_APP_PASSWORD in your .env file."
+        
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["From"] = f"CiphereCore <{SMTP_EMAIL}>"
+            msg["To"] = recipient_email
+            msg["Subject"] = f"CiphereCore — Your Verification Code: {otp_code}"
+
+            html_body = f"""
+            <html>
+            <body style="margin:0;padding:0;background:#080B10;font-family:'Segoe UI',Arial,sans-serif;">
+              <div style="max-width:480px;margin:30px auto;background:#111827;border-radius:16px;border:1px solid #1E293B;overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#0D1117 0%,#1E293B 100%);padding:30px 24px;text-align:center;">
+                  <h1 style="color:#00D4FF;font-size:24px;margin:0 0 4px;">🔐 CiphereCore</h1>
+                  <p style="color:#94A3B8;font-size:13px;margin:0;">Email Verification</p>
+                </div>
+                <div style="padding:32px 24px;text-align:center;">
+                  <p style="color:#FFFFFF;font-size:15px;margin:0 0 20px;">Your one-time verification code is:</p>
+                  <div style="background:#0D1117;border:2px solid #00D4FF;border-radius:12px;padding:18px 24px;display:inline-block;margin-bottom:20px;">
+                    <span style="font-size:32px;font-weight:800;letter-spacing:8px;color:#00D4FF;">{otp_code}</span>
+                  </div>
+                  <p style="color:#94A3B8;font-size:12px;margin:0;">This code expires in <b style="color:#F59E0B;">5 minutes</b>.</p>
+                  <p style="color:#94A3B8;font-size:12px;margin:10px 0 0;">If you didn't request this, ignore this email.</p>
+                </div>
+                <div style="background:#0D1117;padding:16px 24px;text-align:center;border-top:1px solid #1E293B;">
+                  <p style="color:#475569;font-size:11px;margin:0;">© 2026 CiphereCore — Secure Digital Life</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            """
+            msg.attach(MIMEText(html_body, "html"))
+
+            # Send via Gmail SMTP (SSL on port 465)
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
+                server.send_message(msg)
+            
+            return True, "OTP sent successfully"
+        except smtplib.SMTPAuthenticationError:
+            return False, "Email authentication failed.\nCheck SMTP_APP_PASSWORD in .env\n\nMake sure you use a Google App Password,\nnot your regular Gmail password."
+        except smtplib.SMTPException as e:
+            return False, f"Email sending failed: {str(e)}"
+        except Exception as e:
+            return False, f"Error sending OTP: {str(e)}"
+
+    def _send_otp_clicked(self):
+        """Send OTP to the email entered in the registration form"""
+        email = self.reg_email_entry.get().strip()
+
+        # Validate email
+        if not email or '@' not in email or '.' not in email.split('@')[-1]:
+            self.otp_status_label.configure(text="⚠ Enter a valid email address first", text_color=DANGER_RED)
+            return
+
+        if not self.mongo_manager or not self.mongo_manager.connected:
+            self.otp_status_label.configure(text="❌ MongoDB not connected", text_color=DANGER_RED)
+            return
+
+        # Check if email already registered
+        if self.mongo_manager.db is not None and self.mongo_manager.db.users.find_one({"email": email}):
+            self.otp_status_label.configure(text="❌ This email is already registered. Try logging in.", text_color=DANGER_RED)
+            return
+
+        # Disable Send OTP button while sending
+        self.send_otp_btn.configure(state="disabled", text="Sending...")
+        self.update_idletasks()
+
+        # Generate OTP
+        otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+        # Store OTP in MongoDB
+        if not self.mongo_manager.store_otp(email, otp_code):
+            self.otp_status_label.configure(text="❌ Failed to generate OTP. Check MongoDB.", text_color=DANGER_RED)
+            self.send_otp_btn.configure(state="normal", text="📧 Send OTP")
+            return
+
+        # Send OTP email
+        success, send_msg = self._send_otp_email(email, otp_code)
+        if success:
+            self._otp_email = email
+            self._otp_verified = False
+            self.otp_status_label.configure(text=f"✅ OTP sent to {email}  —  check your inbox!", text_color=SUCCESS_GREEN)
+            # Show OTP input row
+            self.otp_input_frame.pack(pady=(4, 4))
+            self.reg_otp_entry.focus()
+            self.send_otp_btn.configure(state="normal", text="📧 Resend")
+        else:
+            self.otp_status_label.configure(text=f"❌ {send_msg}", text_color=DANGER_RED)
+            self.send_otp_btn.configure(state="normal", text="📧 Send OTP")
+
+    def _verify_otp_clicked(self):
+        """Verify the OTP code entered by the user"""
+        entered_otp = self.reg_otp_entry.get().strip()
+
+        if not entered_otp or len(entered_otp) != 6:
+            self.otp_status_label.configure(text="⚠ Enter the 6-digit code from your email", text_color=WARNING_ORANGE)
+            return
+
+        if not self._otp_email:
+            self.otp_status_label.configure(text="❌ Send OTP first", text_color=DANGER_RED)
+            return
+
+        # Verify OTP from MongoDB
+        verified, verify_msg = self.mongo_manager.verify_otp(self._otp_email, entered_otp)
+        if verified:
+            self._otp_verified = True
+            self.otp_status_label.configure(text="✅ Email verified successfully!", text_color=SUCCESS_GREEN)
+            # Lock email field and OTP section
+            self.reg_email_entry.configure(state="disabled")
+            self.send_otp_btn.configure(state="disabled", fg_color="#374151")
+            self.reg_otp_entry.configure(state="disabled", border_color=SUCCESS_GREEN)
+            self.verify_otp_btn.configure(state="disabled", text="✅ Verified", fg_color="#374151")
+            self.resend_btn.configure(state="disabled")
+        else:
+            self.otp_status_label.configure(text=f"❌ {verify_msg}", text_color=DANGER_RED)
+
+    def _handle_register_final(self):
+        """Final registration after OTP is verified"""
+        username = self.reg_user_entry.get().strip()
+        email = self.reg_email_entry.get().strip() if not self._otp_email else self._otp_email
+        password = self.reg_pass_entry.get()
+        confirm = self.reg_confirm_entry.get()
+
+        # Validate username
+        valid, msg = validate_username(username)
+        if not valid:
+            messagebox.showerror("Invalid Username", msg)
+            return
+
+        # Check OTP verification
+        if not self._otp_verified:
+            messagebox.showerror("Email Not Verified", "Please verify your email first.\n\n1. Enter your email\n2. Click 'Send OTP'\n3. Enter the 6-digit code\n4. Click 'Verify'")
+            return
+
+        # Validate password
+        valid, msg = validate_password(password)
+        if not valid:
+            messagebox.showerror("Invalid Password", msg)
+            return
+
+        # Confirm passwords match
+        if password != confirm:
+            messagebox.showerror("Password Mismatch", "Passwords do not match. Please re-enter.")
+            return
+
+        if not self.mongo_manager:
+            messagebox.showerror("Error", "MongoDB not connected")
+            return
+
+        # Check if username already exists
+        if self.mongo_manager.db is not None and self.mongo_manager.db.users.find_one({"username": username}):
+            messagebox.showerror("Username Taken", "This username is already registered. Choose another.")
+            return
+
+        # Register the user
+        success, reg_msg = self.mongo_manager.register(username, password, email)
+        if success:
+            messagebox.showinfo("🎉 Account Created", 
+                               f"Welcome to CiphereCore, {username}!\n\n"
+                               "Your account has been verified and created successfully.\n"
+                               "You can now login with your credentials.")
+            self._show_login_screen()
+        else:
+            messagebox.showerror("Registration Failed", reg_msg)
 
     def retry_mongo_connect(self):
         """Attempts to reconnect to MongoDB with detailed error feedback"""
@@ -1488,8 +1855,16 @@ class CipherCoreApp(ctk.CTk):
             self.show_auth_screen()
 
     def handle_login(self):
-        user = self.auth_user_entry.get()
+        user = self.auth_user_entry.get().strip()
         pwd = self.auth_pass_entry.get()
+
+        if not user:
+            messagebox.showerror("Login Failed", "Username cannot be empty")
+            return
+        if not pwd:
+            messagebox.showerror("Login Failed", "Password cannot be empty")
+            return
+
         if not self.mongo_manager:
             messagebox.showerror("Error", "MongoDB not connected")
             return
@@ -1502,17 +1877,8 @@ class CipherCoreApp(ctk.CTk):
             messagebox.showerror("Login Failed", msg)
 
     def handle_register(self):
-        user = self.auth_user_entry.get()
-        pwd = self.auth_pass_entry.get()
-        if not self.mongo_manager:
-            messagebox.showerror("Error", "MongoDB not connected")
-            return
-        
-        success, msg = self.mongo_manager.register(user, pwd)
-        if success:
-            messagebox.showinfo("Success", "Account created successfully. You can now login.")
-        else:
-            messagebox.showerror("Registration Failed", msg)
+        """Legacy register handler — redirects to new registration flow"""
+        self._show_register_screen()
 
     def on_auth_success(self):
         self.is_authenticated = True
