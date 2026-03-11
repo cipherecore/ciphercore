@@ -45,7 +45,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Load environment variables from .env file (must happen before constants are read)
-load_dotenv(os.path.join(os.path.abspath(os.path.dirname(__file__)), ".env"))
+load_dotenv(resource_path(".env"))
 
 try:
     import pymongo
