@@ -7,16 +7,32 @@
       "destination": "/website/index.html"
     },
     {
-      "source": "/(css|js|assets|Output)/(.*)",
-      "destination": "/website/$1/$2"
+      "source": "/css/:path*",
+      "destination": "/website/css/:path*"
     },
     {
-      "source": "/((?!website).*\\.html)",
-      "destination": "/website/$1"
+      "source": "/js/:path*",
+      "destination": "/website/js/:path*"
     },
     {
-       "source": "/(CiphereCore_.*\\.(exe|zip))",
-       "destination": "/website/$1"
+      "source": "/assets/:path*",
+      "destination": "/website/assets/:path*"
+    },
+    {
+      "source": "/:path((?!website/).*\\.html)",
+      "destination": "/website/:path"
+    },
+    {
+      "source": "/:path(.*\\.exe)",
+      "destination": "/website/:path"
+    },
+    {
+      "source": "/:path(.*\\.zip)",
+      "destination": "/website/:path"
+    },
+    {
+      "source": "/ciphercore_icon.ico",
+      "destination": "/website/ciphercore_icon.ico"
     }
   ]
 }
