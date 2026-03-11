@@ -7,24 +7,16 @@
       "destination": "/website/index.html"
     },
     {
-      "source": "/(css|js|assets|Output|Output/(.*))/(.*)",
+      "source": "/(css|js|assets|Output)/(.*)",
       "destination": "/website/$1/$2"
     },
     {
-      "source": "/(.*).html",
-      "destination": "/website/$1.html"
-    },
-    {
-      "source": "/(.*).exe",
-      "destination": "/website/$1.exe"
-    },
-    {
-      "source": "/(.*).zip",
-      "destination": "/website/$1.zip"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!website).*\\.html)",
       "destination": "/website/$1"
+    },
+    {
+       "source": "/(CiphereCore_.*\\.(exe|zip))",
+       "destination": "/website/$1"
     }
   ]
 }
